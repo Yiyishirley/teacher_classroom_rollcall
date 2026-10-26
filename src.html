@@ -1,0 +1,1371 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>课堂点名</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#000000; --muted:#6e6e73; --faint:#a1a1a6;
+  --line:#d2d2d7; --soft:#f5f5f7; --danger:#b3261e;
+  --sans:"Helvetica Neue",Helvetica,Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",sans-serif;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{color-scheme:light;background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{min-height:100vh;overflow-x:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+::selection{background:#000;color:#fff}
+:focus-visible{outline:1px solid var(--fg);outline-offset:3px}
+
+/* ---------- header ---------- */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:rgba(255,255,255,.96)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;height:64px;display:flex;align-items:center;justify-content:space-between;
+  padding-left:max(clamp(16px,4vw,56px),env(safe-area-inset-left,0px));padding-right:max(clamp(16px,4vw,56px),env(safe-area-inset-right,0px));background:rgba(255,255,255,.86);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid rgba(0,0,0,.08)}
+.wordmark{font-weight:700;font-size:15px;letter-spacing:.42em;text-transform:uppercase;white-space:nowrap}
+nav{display:flex;gap:clamp(14px,3vw,40px);align-items:center}
+nav button{position:relative;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);padding:8px 0;transition:color .3s}
+nav button:hover,nav button.on{color:var(--fg)}
+nav button.on::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:1px;background:var(--fg)}
+nav .zh{display:block;font-size:11px;letter-spacing:.2em;margin-top:2px}
+.iconbtn{width:36px;height:36px;display:grid;place-items:center;color:var(--muted);transition:color .3s}
+.iconbtn:hover{color:var(--fg)}
+
+.brand{display:flex;align-items:center;gap:20px;min-width:0}
+.clsw{position:relative;min-width:0}
+#clsBtn{display:flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.1em;color:var(--muted);padding:8px 0;white-space:nowrap;transition:color .3s}
+#clsBtn span{max-width:32vw;overflow:hidden;text-overflow:ellipsis}
+#clsBtn:hover,#clsBtn[aria-expanded=true]{color:var(--fg)}
+#clsBtn::before{content:"";width:1px;height:14px;background:var(--line);margin-right:10px}
+.menu{position:absolute;top:calc(100% + 12px);left:0;min-width:240px;background:var(--bg);border:1px solid var(--fg);padding:8px 0;z-index:40;animation:pageIn .35s var(--ease-out)}
+.menu button{display:flex;justify-content:space-between;align-items:baseline;gap:16px;width:100%;text-align:left;padding:11px 18px;font-size:14px;letter-spacing:.04em}
+.menu button:hover{background:var(--soft)}
+.menu button small{color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums}
+.menu button.cur{font-weight:600}
+.menu button.cur small::before{content:"✓  ";color:var(--fg)}
+.menu button.danger{color:var(--danger)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.sw{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.2em;color:var(--muted)}
+.switch{position:relative;flex:none;width:44px;height:26px;border-radius:13px;background:#e5e5ea;transition:background .3s var(--ease)}
+.switch i{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18),0 0 1px rgba(0,0,0,.25);transition:transform .35s var(--ease-out)}
+.switch[aria-checked=true]{background:var(--fg)}
+.switch[aria-checked=true] i{transform:translateX(18px)}
+.swrow{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 0;border-bottom:1px solid var(--line);max-width:720px}
+.swrow b{font-weight:500;font-size:15px}
+.swrow p{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.6}
+.hint-r{display:flex;gap:24px;align-items:baseline}
+/* ---------- pages ---------- */
+main{padding-block:0 96px;padding-left:max(clamp(16px,4vw,56px),env(safe-area-inset-left,0px));padding-right:max(clamp(16px,4vw,56px),env(safe-area-inset-right,0px))}
+.page{display:none;max-width:1280px;margin:0 auto}
+.page.on{display:block;animation:pageIn .7s var(--ease-out)}
+@keyframes pageIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.hero{text-align:center;padding:clamp(56px,10vh,120px) 0 clamp(32px,6vh,64px)}
+.eyebrow{font-size:12px;letter-spacing:.38em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(52px,9vw,128px);font-weight:800;letter-spacing:-.02em;line-height:1.02;margin:18px 0 18px}
+.sub{font-size:clamp(15px,1.4vw,19px);color:var(--muted);letter-spacing:.04em}
+.sub b{color:var(--fg);font-weight:600}
+
+.controls{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:center;margin-bottom:clamp(48px,8vh,88px)}
+.stepper{display:flex;align-items:center;height:52px;border:1px solid var(--fg)}
+.stepper button{width:52px;height:100%;font-size:20px;transition:background .25s,color .25s}
+.stepper button:hover{background:var(--fg);color:var(--bg)}
+.stepper .val{min-width:92px;text-align:center;line-height:1.1}
+.stepper .val b{display:block;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.stepper .val small{font-size:10px;letter-spacing:.3em;color:var(--muted)}
+
+.btn{height:52px;padding:0 34px;border:1px solid var(--fg);font-size:14px;letter-spacing:.24em;text-transform:uppercase;
+  transition:background .3s var(--ease),color .3s var(--ease);white-space:nowrap}
+.btn:hover{background:var(--fg);color:var(--bg)}
+.btn.solid{background:var(--fg);color:var(--bg)}
+.btn.solid:hover{background:#2c2c2e}
+.btn.small{height:40px;padding:0 20px;font-size:12px;letter-spacing:.2em}
+.btn.ghost{border-color:var(--line);color:var(--muted)}
+.btn.ghost:hover{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.link{font-size:12px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:2px;transition:color .3s,border-color .3s}
+.link:hover{color:var(--fg);border-color:var(--fg)}
+
+.section-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--fg);padding-bottom:12px;margin-bottom:0;gap:12px;flex-wrap:wrap}
+.section-head h2{font-size:12px;letter-spacing:.38em;text-transform:uppercase;font-weight:600}
+.section-head span{font-size:12px;color:var(--muted);letter-spacing:.1em}
+
+/* roster grid on pick page */
+.names{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr))}
+.names .nm{padding:18px 4px;border-bottom:1px solid var(--line);font-size:18px;display:flex;align-items:baseline;gap:10px;text-align:left;transition:color .4s,background .3s}
+.names .nm:hover{background:var(--soft)}
+.names .nm i{font-style:normal;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums;min-width:22px}
+.names .nm.done{color:#c7c7cc;text-decoration:line-through;text-decoration-thickness:1px}
+.names .nm.off{color:#c7c7cc}
+.names .nm.off::after{content:"缺席";font-size:10px;letter-spacing:.2em;border:1px solid var(--line);color:var(--muted);padding:2px 6px;margin-left:auto;margin-right:8px}
+.empty{padding:64px 0;text-align:center;color:var(--muted);font-size:15px;line-height:2}
+
+/* groups */
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));padding:1px 0 0 1px}
+.gcard{background:var(--bg);border:1px solid var(--line);margin:-1px 0 0 -1px;padding:28px 26px 30px;opacity:0;transform:translateY(24px)}
+.gcard.in{opacity:1;transform:none;transition:opacity 1.4s var(--ease-out),transform 1.4s var(--ease-out)}
+.gcard .num{font-size:56px;font-weight:200;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.gcard .lbl{font-size:11px;letter-spacing:.38em;color:var(--muted);margin:10px 0 20px;text-transform:uppercase}
+.gcard ul{list-style:none}
+.gcard li{font-size:19px;padding:7px 8px;margin:0 -8px;border-top:1px solid var(--soft);display:flex;justify-content:space-between;align-items:baseline;transition:background .12s,color .12s}
+.gcard li.flash{background:var(--soft)}
+.gcard li.lead{background:var(--fg);color:var(--bg)}
+.gcard li.lead::after{content:"组长";font-size:10px;letter-spacing:.3em;opacity:.75}
+.gactions{display:flex;gap:28px;justify-content:center;margin-top:36px}
+
+/* roster page */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:20px}
+.drop{border:1px dashed var(--line);padding:30px 16px;text-align:center;color:var(--muted);font-size:14px;letter-spacing:.06em;margin-bottom:28px;transition:border-color .3s,background .3s}
+.drop.over{border-color:var(--fg);background:var(--soft);color:var(--fg)}
+.drop small{display:block;margin-top:6px;font-size:12px;color:var(--faint)}
+.report{border-left:2px solid var(--fg);padding:14px 18px;background:var(--soft);font-size:14px;line-height:1.9;margin-bottom:32px;display:none}
+.report.on{display:block;animation:pageIn .5s var(--ease-out)}
+.report .warn{color:var(--danger)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:14px 8px;border-bottom:1px solid var(--fg)}
+td{padding:6px 8px;border-bottom:1px solid var(--line)}
+td input,td select{width:100%;border:1px solid transparent;background:transparent;padding:8px;font-size:16px;outline:none;transition:border-color .2s}
+td input:hover,td select:hover{border-color:var(--line)}
+td input:focus,td select:focus{border-color:var(--fg)}
+td.no input{width:72px;font-variant-numeric:tabular-nums}
+.grow{display:grid;grid-template-columns:44px minmax(90px,1fr) auto;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);max-width:720px}
+.grow .no{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.grow .nm{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gseg{display:inline-flex;border:1px solid var(--line)}
+.gseg button{width:72px;padding:8px 0;font-size:13px;letter-spacing:.06em;color:var(--muted);transition:background .2s,color .2s}
+.gseg button + button{border-left:1px solid var(--line)}
+.gseg button.on{background:var(--fg);color:var(--bg)}
+.wrow .nm small{font-size:11px;color:var(--faint);margin-left:8px;letter-spacing:.04em}
+.srow{display:grid;grid-template-columns:44px minmax(90px,1fr) 80px 120px;gap:14px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.srow .no{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.srow .n{text-align:right;font-variant-numeric:tabular-nums}
+.srow .t{text-align:right;color:var(--muted);font-size:13px}
+.gstat{display:flex;gap:28px;font-size:14px;color:var(--muted);margin-bottom:12px;font-variant-numeric:tabular-nums}
+.gstat b{color:var(--fg);font-weight:600}
+td.x{width:44px;text-align:right}
+td.x button{color:var(--faint);font-size:20px;width:32px;height:32px}
+td.x button:hover{color:var(--danger)}
+tr.dup td.nm input{color:var(--danger)}
+td.st,th.st{width:124px;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px;padding-right:16px}
+.hrow{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:16px;padding:14px 4px;border-bottom:1px solid var(--line);font-size:15px}
+.hrow time{color:var(--muted);font-size:13px;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+#dlgIn{width:100%;border:0;border-bottom:1px solid var(--fg);padding:10px 2px;font-size:18px;outline:none;margin:-12px 0 28px;background:transparent}
+.legend{font-size:12px;color:var(--muted);letter-spacing:.06em;margin-top:14px}
+
+/* ---------- stage (black) ---------- */
+#stage{position:fixed;inset:0;z-index:50;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:#000;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .6s var(--ease)}
+#stage.on{opacity:1;pointer-events:auto}
+#stage .eyebrow{color:#86868b;position:absolute;top:calc(clamp(40px,10vh,96px) + env(safe-area-inset-top,0px));left:0;right:0;text-align:center}
+#roll{font-size:clamp(84px,16vw,240px);font-weight:800;letter-spacing:-.01em;line-height:1;text-align:center;padding:0 16px;will-change:filter,opacity}
+#roll.blur{filter:blur(3px);opacity:.82}
+#roll.track{letter-spacing:.3em;padding-left:.3em;transform:scale(.84)}
+#roll.track.landed{letter-spacing:-.01em;padding-left:0;transform:none;transition:letter-spacing 1.7s var(--ease-out),padding-left 1.7s var(--ease-out),transform 1.7s var(--ease-out)}
+#roll.dim{color:#c7c7cc}
+#roll.sweep{color:transparent;background:linear-gradient(105deg,#fff 0%,#fff 44%,#fff 47%,#c7c7cc 56%,#c7c7cc 100%);background-size:300% 100%;background-position:100% 0;
+  -webkit-background-clip:text;background-clip:text;animation:sweep 1.5s cubic-bezier(.45,.05,.35,1) forwards,glow 2.2s ease-out forwards}
+@keyframes sweep{to{background-position:0 0}}
+@keyframes glow{0%{filter:none}35%{filter:drop-shadow(0 0 28px rgba(255,255,255,.5))}100%{filter:drop-shadow(0 0 0 rgba(255,255,255,0))}}
+.rule{position:absolute;left:50%;height:1px;background:#fff;opacity:0;width:var(--w,60vw);transform:translateX(-50%) scaleX(0);pointer-events:none}
+.rule.on{opacity:.55;transform:translateX(-50%) scaleX(1);transition:transform 1.4s var(--ease-out),opacity .5s}
+#spot{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 52% 42% at 50% 50%,rgba(255,255,255,.15),rgba(255,255,255,.045) 45%,rgba(255,255,255,0) 72%)}
+#spot.on{opacity:1;transition:opacity 2s var(--ease)}
+#winners{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin:0 auto;display:none;flex-wrap:wrap;justify-content:center;align-items:center;gap:clamp(18px,3vw,48px) clamp(28px,5vw,80px);padding:0 24px;max-width:1500px}
+#winners.on{display:flex}
+#winners div{font-weight:800;line-height:1.05;text-align:center;opacity:0;transform:scale(.92);filter:blur(10px)}
+#winners div.in{opacity:1;transform:none;filter:none;transition:opacity 1.1s var(--ease-out),transform 1.4s var(--ease-out),filter 1.1s var(--ease-out)}
+#winners div small{display:block;font-size:12px;letter-spacing:.38em;color:#86868b;font-weight:400;margin-bottom:10px}
+.stage-foot{position:absolute;bottom:calc(clamp(36px,8vh,80px) + env(safe-area-inset-bottom,0px));left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:18px}
+.stage-foot .hint{font-size:12px;letter-spacing:.3em;color:#86868b}
+.stage-foot .row{display:flex;gap:14px}
+.btn.w{border-color:#fff;color:#fff}
+.btn.w:hover{background:#fff;color:#000}
+.btn.w.solid{background:#fff;color:#000}
+.btn.w.solid:hover{background:#d2d2d7}
+.fade-hide{opacity:0;pointer-events:none;transition:opacity .5s}
+.fade-show{opacity:1;transition:opacity .8s .2s}
+
+/* ---------- advanced ---------- */
+#adv{position:fixed;inset:0;z-index:60;padding-top:env(safe-area-inset-top,0px);background:var(--bg);overflow:auto;transform:translateY(100%);transition:transform .7s var(--ease-out);visibility:hidden}
+#adv.on{transform:none;visibility:visible}
+#adv .inner{max-width:1080px;margin:0 auto;padding-block:0 calc(80px + env(safe-area-inset-bottom,0px));padding-left:max(clamp(16px,4vw,56px),env(safe-area-inset-left,0px));padding-right:max(clamp(16px,4vw,56px),env(safe-area-inset-right,0px))}
+#adv .top{position:sticky;top:0;background:rgba(255,255,255,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:flex;justify-content:space-between;align-items:center;height:64px;border-bottom:1px solid rgba(0,0,0,.08);z-index:2;padding-left:max(clamp(16px,4vw,56px),env(safe-area-inset-left,0px));padding-right:max(clamp(16px,4vw,56px),env(safe-area-inset-right,0px))}
+#adv h3{font-size:clamp(34px,5vw,56px);font-weight:800;letter-spacing:-.02em;margin:48px 0 8px}
+#adv .desc{color:var(--muted);font-size:14px;line-height:1.8;margin-bottom:24px}
+.tabs{display:flex;gap:28px}
+.tabs button{font-size:13px;letter-spacing:.2em;color:var(--muted);padding:8px 0;position:relative}
+.tabs button.on{color:var(--fg)}
+.tabs button.on::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:1px;background:var(--fg)}
+.wrow{display:grid;grid-template-columns:44px minmax(90px,1.2fr) minmax(140px,3fr) 52px 76px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.wrow .no{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.wrow .nm{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrow .v{font-size:15px;font-variant-numeric:tabular-nums;text-align:right}
+.wrow .p{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.wrow .p.hi{color:var(--fg);font-weight:600}
+.wrow.off .nm{color:var(--faint);text-decoration:line-through}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--fg)}
+input[type=range]::-moz-range-track{height:1px;background:var(--fg)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--fg);margin-top:-6.5px;transition:transform .2s}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--fg)}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.25)}
+.seg{display:inline-flex;border:1px solid var(--fg)}
+.seg button{padding:12px 22px;font-size:13px;letter-spacing:.14em;transition:background .25s,color .25s}
+.seg button.on{background:var(--fg);color:var(--bg)}
+.field{margin:32px 0}
+.field > label{display:block;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.bind{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.bind input{flex:1;border:0;border-bottom:1px solid var(--line);padding:10px 2px;font-size:16px;outline:none;background:transparent}
+.bind input:focus{border-color:var(--fg)}
+.bind .chips{font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:.04em}
+.bind .chips .bad{color:var(--danger)}
+.bind .wrap{flex:1}
+.bind button{color:var(--faint);font-size:20px;width:36px;height:40px}
+.bind button:hover{color:var(--danger)}
+
+/* ---------- dialog / toast ---------- */
+#dlg{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.32);display:none;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#dlg.on{display:flex;animation:fadeIn .3s}
+#dlg .box{background:#fff;max-width:440px;width:100%;padding:36px 32px 28px;animation:pageIn .45s var(--ease-out)}
+#dlg h4{font-size:22px;font-weight:700;margin-bottom:12px}
+#dlg p{color:var(--muted);font-size:15px;line-height:1.7;margin-bottom:28px}
+#dlg .row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#toast{position:fixed;left:50%;bottom:calc(32px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:#000;color:#fff;padding:14px 24px;font-size:14px;letter-spacing:.06em;z-index:90;opacity:0;pointer-events:none;transition:opacity .4s,transform .4s var(--ease-out);max-width:calc(100vw - 32px);text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+footer{text-align:center;font-size:11px;letter-spacing:.32em;color:var(--faint);padding:40px 0 32px;text-transform:uppercase}
+
+@media (max-width:640px){
+  header{height:56px}
+  .wordmark{font-size:12px;letter-spacing:.3em}
+  nav .en{display:none}
+  nav .zh{font-size:13px;margin:0}
+  header .wordmark{display:none}
+  #clsBtn::before{display:none}
+  .sw span{display:none}
+  nav{gap:12px}
+  td.st,th.st{display:none}
+  .hrow{grid-template-columns:1fr}
+  .grow{grid-template-columns:26px minmax(0,1fr) auto;gap:10px}
+  .gseg button{width:auto;padding:8px 9px;font-size:12px;white-space:nowrap}
+  #adv .top .wordmark{display:none}
+  .tabs{gap:18px}
+  .tabs button{white-space:nowrap;letter-spacing:.04em}
+  .tabs{gap:14px;overflow-x:auto}
+  .srow{grid-template-columns:26px minmax(0,1fr) 52px 86px;gap:8px}
+  .wrow{grid-template-columns:32px 1fr 56px;grid-template-areas:"no nm v" "r r p"}
+  .wrow .no{grid-area:no}.wrow .nm{grid-area:nm}.wrow .v{grid-area:v}.wrow input{grid-area:r}.wrow .p{grid-area:p}
+  .btn{padding:0 22px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="wordmark">随机点名</div>
+    <div class="clsw">
+      <button id="clsBtn" aria-haspopup="menu" aria-expanded="false"><span id="clsName"></span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 3.5 5 7l3.5-3.5"/></svg></button>
+      <div class="menu" id="clsMenu" role="menu" hidden></div>
+    </div>
+  </div>
+  <nav>
+    <button data-go="pick" class="on"><span class="en">Pick</span><span class="zh">点名</span></button>
+    <button data-go="group"><span class="en">Groups</span><span class="zh">分组</span></button>
+    <button data-go="roster"><span class="en">Roster</span><span class="zh">名单</span></button>
+    <div class="sw"><span>音效</span><button class="switch" role="switch" data-g="sound" aria-label="音效" aria-checked="true"><i></i></button></div>
+    <button class="iconbtn" id="fsBtn" title="全屏 (F)" aria-label="全屏">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg>
+    </button>
+  </nav>
+</header>
+
+<main>
+  <!-- PICK -->
+  <section class="page on" id="p-pick">
+    <div class="hero">
+      <div class="eyebrow">Classroom · Random Pick</div>
+      <h1>随机点名</h1>
+      <div class="sub" id="pickSub"></div>
+    </div>
+    <div class="controls">
+      <div class="stepper">
+        <button data-step="pick" data-d="-1" aria-label="减少">−</button>
+        <div class="val"><b id="pickCountV">1</b><small>人数</small></div>
+        <button data-step="pick" data-d="1" aria-label="增加">+</button>
+      </div>
+      <button class="btn solid" id="startPick">开始点名</button>
+    </div>
+    <div class="section-head"><h2>本轮名单</h2><span class="hint-r">点名字可以标记缺席<button class="link" id="resetPicked">清空本轮</button></span></div>
+    <div class="names" id="names"></div>
+  </section>
+
+  <!-- GROUP -->
+  <section class="page" id="p-group">
+    <div class="hero">
+      <div class="eyebrow">Classroom · Teams</div>
+      <h1>随机分组</h1>
+      <div class="sub" id="groupSub"></div>
+    </div>
+    <div class="controls">
+      <div class="stepper">
+        <button data-step="group" data-d="-1" aria-label="减少">−</button>
+        <div class="val"><b id="groupCountV">4</b><small>组数</small></div>
+        <button data-step="group" data-d="1" aria-label="增加">+</button>
+      </div>
+      <button class="btn solid" id="startGroup">开始分组</button>
+    </div>
+    <div id="groupOut"></div>
+  </section>
+
+  <!-- ROSTER -->
+  <section class="page" id="p-roster">
+    <div class="hero">
+      <div class="eyebrow">Roster</div>
+      <h1>名单</h1>
+      <div class="sub" id="rosterSub"></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn solid small" id="importBtn">导入 Excel</button>
+      <button class="btn small" id="addBtn">添加学生</button>
+      <button class="btn small ghost" id="tplBtn">下载模板</button>
+      <button class="btn small ghost" id="backupBtn">导出备份</button>
+      <button class="btn small ghost" id="restoreBtn">恢复备份</button>
+      <button class="btn small ghost" id="clearBtn">清空名单</button>
+    </div>
+    <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden>
+    <input type="file" id="backupIn" accept=".json" hidden>
+    <div class="drop" id="drop">把 Excel 文件拖到这里
+      <small>第一行表头：序号 / 姓名 / 成绩。只有姓名一列也可以。</small>
+    </div>
+    <div class="report" id="report"></div>
+    <table>
+      <thead><tr><th>序号</th><th>姓名</th><th></th></tr></thead>
+      <tbody id="rosterBody"></tbody>
+    </table>
+  </section>
+</main>
+<footer>Classroom Roll Call</footer>
+
+<!-- black stage -->
+<div id="stage" aria-live="polite">
+  <div id="spot"></div>
+  <div class="rule" id="ruleT"></div><div class="rule" id="ruleB"></div>
+  <div class="eyebrow" id="stageEyebrow">Now Selecting</div>
+  <div id="roll"></div>
+  <div id="winners"></div>
+  <div class="stage-foot">
+    <div class="hint" id="stageHint">按 空格 停止</div>
+    <div class="row" id="stageBtns">
+      <button class="btn w solid" id="stopBtn">停</button>
+    </div>
+  </div>
+</div>
+
+<!-- hidden advanced -->
+<div id="adv" role="dialog" aria-label="高级设置">
+  <div class="top">
+    <div class="wordmark">Settings</div>
+    <div class="tabs">
+      <button data-at="w" class="on">点名权重</button>
+      <button data-at="l">学生成绩</button>
+      <button data-at="g">分组设置</button>
+      <button data-at="h">点名记录</button>
+    </div>
+    <button class="iconbtn" id="advClose" aria-label="关闭"><svg width="18" height="18" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.2"><path d="M2 2l14 14M16 2L2 16"/></svg></button>
+  </div>
+  <div class="inner">
+    <div id="at-w">
+      <h3>点名权重</h3>
+      <p class="desc">50 为正常概率，每往右 5 格机会翻一倍，往左 5 格减半：70 约 16 倍，90 约 256 倍；0 不会被点到，100 必中。<br>右侧是按当前点名人数估算的「被点中概率」，已点过的同学不参与本轮。</p>
+      <div class="swrow"><div><b>点中一次后恢复</b><p>调高过的同学（高于 50）被点中后，自动回到 50。调低的不受影响。</p></div><button class="switch" role="switch" data-g="restoreAfterPick" aria-label="点中一次后恢复"><i></i></button></div>
+      <div class="swrow" style="margin-bottom:28px"><div><b>只对今天有效</b><p>今天调过的权重，明天打开时全部回到 50。</p></div><button class="switch" role="switch" data-g="restoreToday" aria-label="只对今天有效"><i></i></button></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="link" id="resetWeights">全部恢复 50</button></div>
+      <div id="wlist"></div>
+    </div>
+    <div id="at-l" hidden>
+      <h3>学生成绩</h3>
+      <p class="desc">分组时「按成绩均衡」用的就是这里的成绩。导入 Excel 时会读取「成绩」那一列（填 A / B / C），也可以在这里直接改。</p>
+      <div class="gstat" id="gstat"></div>
+      <div id="glist"></div>
+    </div>
+    <div id="at-h" hidden>
+      <h3>点名记录</h3>
+      <p class="desc">每次点名都会记在这里。只在隐藏页里显示，名单页上看不到。</p>
+      <div class="section-head"><h2>每人被点次数</h2><span class="hint-r"><button class="link" id="statSort">按次数排序</button></span></div>
+      <div id="statList"></div>
+      <div class="section-head" style="margin-top:56px"><h2>每次点名</h2><span class="hint-r"><button class="link" id="histExport">导出 Excel</button><button class="link" id="histClear">清空记录</button></span></div>
+      <div id="hist"></div>
+    </div>
+    <div id="at-g" hidden>
+      <h3>分组设置</h3>
+      <div class="field">
+        <label>分组逻辑</label>
+        <div class="seg" id="logicSeg">
+          <button data-l="balanced">按成绩均衡</button>
+          <button data-l="random">完全随机</button>
+        </div>
+        <p class="desc" style="margin-top:12px">按成绩均衡：每组的 A / B / C 人数尽量相同，每组总人数相差不超过 1。</p>
+      </div>
+      <div class="swrow"><div><b>每组抽一位组长</b><p>分组后每组随机抽一人当组长，会参考点名权重；缺席的人不会被抽到。</p></div><button class="switch" role="switch" data-g="leaders" aria-label="每组抽一位组长"><i></i></button></div>
+      <div class="field">
+        <label>捆绑分组 · 优先级最高</label>
+        <p class="desc">同一行的人一定分到同一组。用逗号隔开，可以写姓名或序号；有重名时请写序号。</p>
+        <div id="binds"></div>
+        <button class="link" id="addBind">+ 新增捆绑组</button>
+      </div>
+      <div class="field">
+        <label>不能同组</label>
+        <p class="desc">同一行的人会被分到不同的组。适合把凑在一起就闹的同学分开。一行的人数不能多于组数。</p>
+        <div id="seps"></div>
+        <button class="link" id="addSep">+ 新增一行</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="dlg"><div class="box"><h4 id="dlgT"></h4><p id="dlgP"></p><input id="dlgIn" hidden autocomplete="off"><div class="row" id="dlgBtns"></div></div></div>
+<div id="toast"></div>
+
+<script>/*XLSX*/</script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rnd = n => Math.floor(Math.random() * n);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pad2 = n => String(n).padStart(2, "0");
+
+/* ---------------- state ---------------- */
+// G = everything saved; S = the class currently open (G.classes[i].d)
+const KEY2 = "rollcall.v2";
+const FX_DEFAULT = { track: true, lines: true, sweep: true, spot: true };
+const FX = FX_DEFAULT;
+const newClassData = () => ({ students: [], picked: [], pickCount: 1, groupCount: 4, logic: "balanced", binds: [], seps: [],
+  lastGroups: null, lastLeaders: null, history: [], absent: { date: "", ids: [] } });
+let G = { classes: [], current: null, speed: 3, sound: true, restoreAfterPick: false, restoreToday: false, leaders: false };
+let S = newClassData();
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+// accept the current format, the single-class v1 format, or junk
+function normalize(d) {
+  if (!d || typeof d !== "object") return null;
+  let g;
+  if (Array.isArray(d.classes)) g = Object.assign({}, G, d);
+  else if (Array.isArray(d.students)) {
+    const cls = { id: uid(), name: "我的班级", d: Object.assign(newClassData(), d) };
+    g = Object.assign({}, G, { classes: [cls], current: cls.id, speed: d.speed || 3 });
+  } else return null;
+  g.classes = g.classes.filter(c => c && c.d).map(c => ({ id: c.id || uid(), name: c.name || "未命名班级", d: Object.assign(newClassData(), c.d) }));
+  for (const c of g.classes) {
+    for (const k of ["speed", "fx"]) delete c.d[k];
+    c.d.students.forEach(st => { if (!st.id) st.id = uid(); if (!(st.weight >= 0)) st.weight = 50; if (!["A", "B", "C"].includes(st.grade)) st.grade = "B"; });
+    if (!Array.isArray(c.d.seps)) c.d.seps = [];
+    if (!Array.isArray(c.d.history)) c.d.history = [];
+    if (!c.d.absent || !Array.isArray(c.d.absent.ids)) c.d.absent = { date: "", ids: [] };
+  }
+  if (!g.classes.length) { const c = { id: uid(), name: "我的班级", d: newClassData() }; g.classes.push(c); g.current = c.id; }
+  if (!g.classes.some(c => c.id === g.current)) g.current = g.classes[0].id;
+  return g;
+}
+function adopt(g) { G = g; S = G.classes.find(c => c.id === G.current).d; dailyCleanup(); }
+const curClass = () => G.classes.find(c => c.id === G.current);
+function load() {
+  let g = null;
+  try { g = normalize(JSON.parse(localStorage.getItem(KEY2) || "null")); } catch (e) {}
+  if (!g) try { g = normalize(JSON.parse(localStorage.getItem("rollcall.v1") || "null")); } catch (e) {}
+  adopt(g || normalize({ classes: [] }));
+}
+// new day: absences reset, "today only" weights go back to 50
+function dailyCleanup() {
+  const t = today();
+  for (const c of G.classes) {
+    if (c.d.absent.date !== t) c.d.absent = { date: t, ids: [] };
+    if (G.restoreToday) c.d.students.forEach(st => { if (st.weight !== 50 && st.wDate && st.wDate !== t) { st.weight = 50; delete st.wDate; } });
+  }
+}
+let cloudDoc = null, cloudT = null, cloudBusy = false, cloudDirty = false;
+function save() {
+  try { localStorage.setItem(KEY2, JSON.stringify(G)); } catch (e) {}
+  if (cloudDoc) { clearTimeout(cloudT); cloudT = setTimeout(pushCloud, 800); }
+}
+async function pushCloud() {
+  if (cloudBusy) { cloudDirty = true; return; }
+  cloudBusy = true;
+  try { await cloudDoc.set({ json: JSON.stringify(G), savedAt: Date.now() }); } catch (e) {}
+  cloudBusy = false;
+  if (cloudDirty) { cloudDirty = false; pushCloud(); }
+}
+// signed-in on claude.ai: keep a private copy in the account, so it follows the teacher across devices
+async function initCloud() {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db || !user) return;
+    const id = await user.id(); if (!id) return;
+    const ref = db.doc("data/users/" + id + "/state");
+    const snap = await ref.get();
+    cloudDoc = ref;
+    if (snap.exists) {
+      const g = normalize(JSON.parse((snap.data() || {}).json || "null"));
+      if (g) { adopt(g); try { localStorage.setItem(KEY2, JSON.stringify(G)); } catch (e) {} if (phase === "idle") { render(); renderClasses(); renderSound(); } }
+    } else if (G.classes.some(c => c.d.students.length)) pushCloud();
+  } catch (e) { cloudDoc = null; }
+}
+// offer a generated file: claude.ai viewer -> downloads capability, plain file -> normal download
+async function saveFile(filename, data) {
+  try {
+    const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+    if (dl) { await dl.save({ filename, data }); return; }
+  } catch (e) {
+    if (e && e.code === "declined") return;
+    if (e && e.code === "rate_limited") { toast("请稍等再试"); return; }
+  }
+  if (window.claude && window.claude.use) { toast("这个页面里暂时不能下载文件"); return; }
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+const xlsxBytes = wb => new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })]);
+const byId = id => S.students.find(s => s.id === id);
+const isDup = s => S.students.filter(x => x.name === s.name).length > 1;
+const tag = s => isDup(s) ? `<sup style="font-size:.42em;font-weight:400;margin-left:.2em;opacity:.55">${s.no}</sup>` : "";
+const sortedStudents = () => S.students.slice().sort((a, b) => (a.no - b.no) || a.name.localeCompare(b.name, "zh"));
+
+/* ---------------- ui helpers ---------------- */
+let toastT;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2800); }
+function dialog(title, text, buttons, input) {
+  $("#dlgT").textContent = title; $("#dlgP").textContent = text;
+  const inp = $("#dlgIn"); inp.hidden = input == null; inp.value = input || ""; inp.onkeydown = null;
+  const row = $("#dlgBtns"); row.innerHTML = "";
+  buttons.forEach(b => {
+    const el = document.createElement("button");
+    el.className = "btn small" + (b.solid ? " solid" : "");
+    el.textContent = b.label;
+    el.onclick = () => {
+      if (b.solid && input != null && !inp.value.trim()) { inp.focus(); return; }
+      $("#dlg").classList.remove("on"); b.fn && b.fn(inp.value.trim());
+    };
+    row.appendChild(el);
+    if (b.solid && input != null) inp.onkeydown = e => { if (e.key === "Enter") el.click(); };
+  });
+  $("#dlg").classList.add("on");
+  if (input != null) setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+
+/* ---------------- navigation ---------------- */
+let page = "pick";
+function go(p) {
+  page = p;
+  $$("nav [data-go]").forEach(b => b.classList.toggle("on", b.dataset.go === p));
+  $$(".page").forEach(s => s.classList.toggle("on", s.id === "p-" + p));
+  render();
+  window.scrollTo({ top: 0 });
+}
+$$("nav [data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
+
+/* ---------------- absent today ---------------- */
+const absentSet = () => new Set(S.absent.date === today() ? S.absent.ids : []);
+const present = () => { const a = absentSet(); return S.students.filter(s => !a.has(s.id)); };
+function toggleAbsent(id) {
+  if (phase !== "idle") return;
+  dailyCleanup();
+  const i = S.absent.ids.indexOf(id);
+  if (i >= 0) S.absent.ids.splice(i, 1); else S.absent.ids.push(id);
+  save(); render();
+}
+
+/* ---------------- render ---------------- */
+// stored counts stay as the teacher set them; only the value used is capped by who is here today
+const pickN = () => Math.max(1, Math.min(S.pickCount, present().length || 1));
+const groupN = () => Math.max(1, Math.min(S.groupCount, present().length || 1));
+function render() {
+  const n = present().length;
+
+  renderClasses();
+  $("#pickCountV").textContent = pickN();
+  $("#groupCountV").textContent = groupN();
+
+  const pickedSet = new Set(S.picked), off = absentSet(), total = S.students.length;
+  const done = present().filter(s => pickedSet.has(s.id)).length;
+  $("#pickSub").innerHTML = total ? `本轮已点 <b>${done}</b> / ${n} 人${off.size ? ` · 今天缺席 <b>${off.size}</b> 人` : ""}` : "还没有名单，先去「名单」导入";
+  const names = $("#names");
+  names.innerHTML = total
+    ? sortedStudents().map(s => `<button class="nm${off.has(s.id) ? " off" : pickedSet.has(s.id) ? " done" : ""}" data-id="${s.id}" title="${off.has(s.id) ? "点一下取消缺席" : "点一下标记缺席"}"><i>${pad2(s.no)}</i>${esc(s.name)}</button>`).join("")
+    : `<div class="empty" style="grid-column:1/-1">名单为空<br><button class="link" data-go2="roster">去导入名单</button></div>`;
+
+  const per = n ? (n / groupN()) : 0;
+  $("#groupSub").innerHTML = n ? `${n} 人${off.size ? `（缺席 ${off.size} 人不参与）` : ""} · 每组约 <b>${Number.isInteger(per) ? per : Math.floor(per) + "–" + Math.ceil(per)}</b> 人` : "还没有名单，先去「名单」导入";
+  renderGroups(false);
+
+  $("#rosterSub").innerHTML = total ? `${esc(curClass().name)} · 共 <b>${total}</b> 名学生` : `${esc(curClass().name)} · 导入 Excel，或者手动添加`;
+  if (page === "roster") renderRoster();
+  $$("[data-go2]").forEach(b => b.onclick = () => go(b.dataset.go2));
+}
+
+$("#names").addEventListener("click", e => { const b = e.target.closest(".nm"); if (b) toggleAbsent(b.dataset.id); });
+
+/* ---------------- steppers ---------------- */
+$$("[data-step]").forEach(b => b.onclick = () => {
+  const d = +b.dataset.d, n = Math.max(1, present().length);
+  if (b.dataset.step === "pick") S.pickCount = Math.max(1, Math.min(n, pickN() + d));
+  else S.groupCount = Math.max(1, Math.min(n, groupN() + d));
+  save(); render(); if (advOpen) renderWeights();
+});
+
+/* ================= PICK ================= */
+function eligible() {
+  const p = new Set(S.picked);
+  return present().filter(s => !p.has(s.id) && s.weight > 0);
+}
+// slider value -> chance multiplier: 50 = 1x, every +5 doubles, every -5 halves; 0 = never
+const ew = v => v <= 0 ? 0 : Math.pow(2, (v - 50) / 5);
+// draw k winners without replacement; weight 100 = guaranteed
+function draw(k, pool) {
+  const sure = shuffle(pool.filter(s => s.weight >= 100));
+  const out = sure.slice(0, k);
+  let rest = pool.filter(s => !out.includes(s));
+  while (out.length < k && rest.length) {
+    const total = rest.reduce((a, s) => a + ew(s.weight), 0);
+    let r = Math.random() * total, chosen = rest[rest.length - 1];
+    for (const s of rest) { r -= ew(s.weight); if (r < 0) { chosen = s; break; } }
+    out.push(chosen); rest = rest.filter(s => s !== chosen);
+  }
+  return shuffle(out);
+}
+
+let phase = "idle"; // idle | rolling | stopping | result
+let winners = [], rollTimer = null, rollPool = [];
+// roll-call animation is fixed at the slowest pace
+const spd = () => 1.6;
+
+$("#startPick").onclick = () => { sfx.wake(); startPick(); };
+function startPick() {
+  dailyCleanup();
+  const n = present().length;
+  if (!S.students.length) { dialog("还没有名单", "先在「名单」页导入 Excel 或手动添加学生。", [{ label: "去导入", solid: true, fn: () => go("roster") }, { label: "取消" }]); return; }
+  if (!n) { dialog("今天全员缺席", "在点名页点一下名字可以取消缺席。", [{ label: "好", solid: true }]); return; }
+  let el = eligible();
+  if (el.length === 0) { S.picked = []; save(); el = eligible(); toast("这一轮已经点完，自动开始新一轮"); }
+  if (el.length === 0) { dialog("没有可以点的同学", "所有同学的点名权重都是 0。", [{ label: "好", solid: true }]); return; }
+  if (el.length < pickN()) {
+    dialog(`本轮只剩 ${el.length} 人可点`, `要点 ${pickN()} 人，但本轮还没被点到的只剩 ${el.length} 人。`, [
+      { label: "清空记录并开始", solid: true, fn: () => { S.picked = []; save(); render(); if (eligible().length < pickN()) { toast("可点名人数不足"); return; } runPick(); } },
+      { label: `只点 ${el.length} 人`, fn: () => runPick(el.length) },
+      { label: "取消" }
+    ]);
+    return;
+  }
+  runPick();
+}
+
+let fxTimers = [];
+const later = (fn, ms) => { const t = setTimeout(fn, ms); fxTimers.push(t); return t; };
+function clearFx() {
+  fxTimers.forEach(clearTimeout); fxTimers = [];
+  const roll = $("#roll");
+  roll.className = ""; roll.style.cssText = "";
+  $("#spot").classList.remove("on");
+  ["#ruleT", "#ruleB"].forEach(q => $(q).classList.remove("on"));
+}
+// place the two hairlines just above and below an element
+function showLines(el, width, delay) {
+  if (!FX.lines) return;
+  const st = $("#stage").getBoundingClientRect(), r = el.getBoundingClientRect();
+  const h = r.height, gap = Math.max(18, h * 0.16);
+  const T = $("#ruleT"), B = $("#ruleB");
+  [T, B].forEach(x => { x.classList.remove("on"); x.style.setProperty("--w", width); });
+  T.style.top = (r.top - st.top - gap) + "px";
+  B.style.top = (r.bottom - st.top + gap) + "px";
+  later(() => { T.classList.add("on"); B.classList.add("on"); }, delay);
+}
+
+function runPick(k) {
+  k = k || pickN();
+  const pool = eligible();
+  winners = draw(k, pool);
+  const p = new Set(S.picked);
+  rollPool = present().filter(s => !p.has(s.id));
+  if (rollPool.length < 2) rollPool = present();
+  phase = "rolling";
+  clearFx();
+  $("#stageEyebrow").textContent = "Now Selecting";
+  $("#winners").className = ""; $("#winners").innerHTML = "";
+  const roll = $("#roll");
+  roll.classList.add("blur");
+  if (FX.track) roll.classList.add("track");
+  if (FX.sweep) roll.classList.add("dim");
+  $("#stageHint").textContent = "按 空格 停止";
+  setStageBtns([{ label: "停", solid: true, fn: stopRoll }]);
+  $("#stage").classList.add("on");
+  let last = -1;
+  const tick = () => {
+    let i; do { i = rnd(rollPool.length); } while (rollPool.length > 1 && i === last);
+    last = i; roll.textContent = rollPool[i].name; sfx.tick(0.5);
+    rollTimer = setTimeout(tick, 60 * spd());
+  };
+  tick();
+}
+
+function stopRoll() {
+  if (phase !== "rolling") return;
+  phase = "stopping";
+  clearTimeout(rollTimer);
+  setStageBtns([]); $("#stageHint").textContent = "";
+  const roll = $("#roll");
+  // slow down gradually, last tick lands on the first picked student
+  const steps = [];
+  for (let t = 0; t < 16; t++) steps.push((70 + 640 * Math.pow(t / 15, 2.2)) * spd());
+  let i = 0, last = roll.textContent;
+  const next = () => {
+    if (i < steps.length - 1) {
+      let nm; do { nm = rollPool[rnd(rollPool.length)].name; } while (rollPool.length > 2 && (nm === last || nm === winners[0].name));
+      last = nm; roll.textContent = nm; sfx.tick(0.8);
+      if (i > 6) roll.classList.remove("blur");
+      rollTimer = setTimeout(next, steps[i++]);
+    } else {
+      roll.classList.remove("blur");
+      roll.innerHTML = esc(winners[0].name) + tag(winners[0]);
+      land();
+    }
+  };
+  next();
+}
+
+// the moment the name stops
+function land() {
+  const roll = $("#roll"), k = winners.length;
+  sfx.ding();
+  let settle = 500;
+  if (FX.spot) $("#spot").classList.add("on");
+  if (FX.track) { roll.classList.add("landed"); settle = Math.max(settle, 1700); }
+  if (FX.sweep) { later(() => { roll.classList.remove("dim"); roll.classList.add("sweep"); }, 250); settle = Math.max(settle, 1750); }
+  if (k === 1) showLines(roll, "clamp(220px,62vw,1100px)", 350);
+  $("#stageEyebrow").textContent = "Selected";
+  rollTimer = setTimeout(reveal, settle * spd());
+}
+
+function reveal() {
+  phase = "result";
+  const roll = $("#roll");
+  winners.forEach(w => { if (!S.picked.includes(w.id)) S.picked.push(w.id); });
+  S.history.push({ t: Date.now(), ids: winners.map(w => w.id), names: winners.map(w => w.name) });
+  if (S.history.length > 3000) S.history.splice(0, S.history.length - 3000);
+  if (G.restoreAfterPick) winners.forEach(w => { if (w.weight > 50) { w.weight = 50; delete w.wDate; } });
+  save(); render();
+  const k = winners.length;
+  const showButtons = delay => later(() => {
+    $("#stageHint").textContent = "空格 再点一次 · ESC 返回";
+    setStageBtns([{ label: "再点一次", solid: true, fn: () => { closeStage(true); } }, { label: "返回", fn: () => closeStage(false) }]);
+  }, delay);
+  if (k === 1) { showButtons(100); return; }
+
+  // several: the landed name glides into its place in the row, the others fade in beside it
+  $("#stageEyebrow").textContent = `Selected · ${k}`;
+  roll.classList.remove("sweep", "dim");
+  const box = $("#winners");
+  const size = k <= 3 ? "clamp(56px,9vw,150px)" : k <= 6 ? "clamp(44px,6.5vw,110px)" : "clamp(34px,4.6vw,76px)";
+  box.innerHTML = winners.map(w => `<div style="font-size:${size}">${esc(w.name)}${tag(w)}</div>`).join("");
+  box.classList.add("on");
+  const first = box.children[0];
+  const a = roll.getBoundingClientRect(), b = first.getBoundingClientRect();
+  const sc = parseFloat(getComputedStyle(first).fontSize) / parseFloat(getComputedStyle(roll).fontSize);
+  const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+  roll.style.transition = `transform ${0.9 * spd()}s cubic-bezier(.16,1,.3,1)`;
+  roll.style.transform = `translate(${dx}px,${dy}px) scale(${sc})`;
+  later(() => {
+    first.style.transition = "none"; first.classList.add("in");
+    roll.style.display = "none";
+    [...box.children].slice(1).forEach((d, i) => later(() => d.classList.add("in"), 150 + i * 260 * spd()));
+    showLines(box, "min(92vw,1400px)", 150 + (k - 1) * 260 * spd());
+    showButtons(500 + k * 260 * spd());
+  }, 900 * spd());
+}
+
+function setStageBtns(list) {
+  const row = $("#stageBtns"); row.innerHTML = "";
+  list.forEach(b => { const el = document.createElement("button"); el.className = "btn w" + (b.solid ? " solid" : ""); el.textContent = b.label; el.onclick = b.fn; row.appendChild(el); });
+}
+function closeStage(again) {
+  clearTimeout(rollTimer); fxTimers.forEach(clearTimeout); fxTimers = [];
+  phase = "idle";
+  $("#stage").classList.remove("on");
+  if (again) setTimeout(startPick, 450);
+}
+$("#resetPicked").onclick = () => {
+  if (!S.picked.length) { toast("本轮还没有点过人"); return; }
+  dialog("清空本轮记录？", "所有同学都会重新参与点名。", [{ label: "清空", solid: true, fn: () => { S.picked = []; save(); render(); toast("已清空，开始新一轮"); } }, { label: "取消" }]);
+};
+
+/* ================= GROUP ================= */
+// turn lines like "张三, 李四, 12" into id lists; returns {sets:[[ids]], detail:[{ok,bad}]}
+function resolveLines(lines) {
+  const detail = [], sets = [];
+  for (const line of lines) {
+    const toks = String(line).split(/[,，、;；\s]+/).map(t => t.trim()).filter(Boolean);
+    const ok = [], bad = [], ids = [];
+    for (const t of toks) {
+      let hit = null;
+      if (/^\d+$/.test(t)) { const m = S.students.filter(s => s.no === +t); if (m.length === 1) hit = m[0]; }
+      if (!hit) {
+        const m = S.students.filter(s => s.name === t);
+        if (m.length === 1) hit = m[0];
+        else if (m.length > 1) { bad.push(t + "（重名，请写序号）"); continue; }
+      }
+      if (hit) { if (!ids.includes(hit.id)) { ids.push(hit.id); ok.push(hit.name); } } else bad.push(t);
+    }
+    detail.push({ ok, bad });
+    if (ids.length > 1) sets.push(ids);
+  }
+  return { sets, detail };
+}
+function resolveBinds() {
+  const { sets, detail } = resolveLines(S.binds);
+  // merge overlapping binds
+  const merged = [];
+  for (const g of sets) {
+    const hits = merged.filter(m => g.some(id => m.includes(id)));
+    const u = new Set(g); hits.forEach(h => { h.forEach(id => u.add(id)); merged.splice(merged.indexOf(h), 1); });
+    merged.push([...u]);
+  }
+  return { groups: merged, detail };
+}
+// pairs that must not share a group: id -> Set(ids)
+function sepMap() {
+  const m = new Map();
+  for (const set of resolveLines(S.seps).sets)
+    for (const a of set) for (const b of set) if (a !== b) { if (!m.has(a)) m.set(a, new Set()); m.get(a).add(b); }
+  return m;
+}
+
+function buildGroups(n) {
+  const all = present();
+  const here = new Set(all.map(x => x.id));
+  const groups = Array.from({ length: n }, () => []);
+  const placed = new Set();
+  const cap = Math.ceil(all.length / n);
+  const pickMin = (cands, key) => { const m = Math.min(...cands.map(key)); const best = cands.filter(c => key(c) === m); return best[rnd(best.length)]; };
+  const gIdx = [...groups.keys()];
+  const sep = sepMap();
+  const clash = (i, ids) => groups[i].some(x => ids.some(id => sep.has(id) && sep.get(id).has(x.id)));
+  // keep apart if possible; if every group clashes, fall back (reported after)
+  const noClash = (cands, ids) => { const c = cands.filter(i => !clash(i, ids)); return c.length ? c : cands; };
+  // 1) bound units first, biggest first
+  const units = shuffle(resolveBinds().groups.map(u => u.filter(id => here.has(id))).filter(u => u.length))
+    .sort((a, b) => b.length - a.length);
+  for (const u of units) {
+    const g = pickMin(noClash(gIdx, u), i => groups[i].length);
+    u.forEach(id => { groups[g].push(byId(id)); placed.add(id); });
+  }
+  const rest = all.filter(s => !placed.has(s.id));
+  // students with "not together" rules go first so they still have free groups to choose from
+  const hasSep = s => sep.has(s.id);
+  let order = S.logic === "balanced"
+    ? ["A", "B", "C"].flatMap(gr => shuffle(rest.filter(s => s.grade === gr)))
+    : shuffle(rest);
+  order = [...order.filter(hasSep), ...order.filter(s => !hasSep(s))];
+  for (const s of order) {
+    let c = gIdx.filter(i => groups[i].length < cap); if (!c.length) c = gIdx;
+    c = noClash(c, [s.id]);
+    if (S.logic === "balanced") {
+      const gradeCnt = i => groups[i].filter(x => x.grade === s.grade).length;
+      const mg = Math.min(...c.map(gradeCnt));
+      c = c.filter(i => gradeCnt(i) === mg);
+    }
+    groups[pickMin(c, i => groups[i].length)].push(s);
+  }
+  return shuffle(groups).map(g => g.sort((a, b) => a.no - b.no).map(s => s.id));
+}
+function countClashes(G) {
+  const sep = sepMap(); let n = 0;
+  for (const g of G) for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) if (sep.has(g[i]) && sep.get(g[i]).has(g[j])) n++;
+  return n;
+}
+
+let groupTimers = [];
+const gLater = (fn, ms) => groupTimers.push(setTimeout(fn, ms));
+function clearGroupTimers() { groupTimers.forEach(clearTimeout); groupTimers = []; }
+// leader per group: weighted by the hidden roll-call weights
+function pickLeaders(groups) {
+  return groups.map(g => {
+    const pool = g.map(byId).filter(Boolean);
+    const pos = pool.filter(x => x.weight > 0);
+    return (draw(1, pos.length ? pos : pool)[0] || {}).id || null;
+  });
+}
+
+$("#startGroup").onclick = () => {
+  dailyCleanup();
+  const n = present().length;
+  if (!S.students.length) { dialog("还没有名单", "先在「名单」页导入 Excel 或手动添加学生。", [{ label: "去导入", solid: true, fn: () => go("roster") }, { label: "取消" }]); return; }
+  if (!n) { dialog("今天全员缺席", "在点名页点一下名字可以取消缺席。", [{ label: "好", solid: true }]); return; }
+  sfx.wake();
+  clearGroupTimers();
+  const out = $("#groupOut");
+  const cards = [...out.querySelectorAll(".gcard")];
+  const doBuild = () => {
+    S.lastGroups = buildGroups(groupN());
+    S.lastLeaders = G.leaders ? pickLeaders(S.lastGroups) : null;
+    save(); renderGroups(true);
+    out.scrollIntoView({ behavior: "smooth", block: "start" });
+    const bad = countClashes(S.lastGroups);
+    if (bad && advOpen === false) toast(`有 ${bad} 对「不能同组」的同学没分开：组数比一行的人数少`);
+  };
+  if (cards.length) {
+    cards.forEach((c, i) => { c.style.transitionDelay = (i * 40) + "ms"; c.classList.remove("in"); });
+    gLater(doBuild, 700);
+  } else doBuild();
+};
+
+function renderGroups(animate) {
+  const out = $("#groupOut");
+  const GR = (S.lastGroups || []).map(g => g.map(byId).filter(Boolean));
+  if (!GR.length || !S.students.length) { out.innerHTML = ""; return; }
+  const leaders = S.lastLeaders || [];
+  const isLead = (i, s) => leaders[i] === s.id;
+  out.innerHTML = `<div class="section-head" style="border:0;padding-bottom:16px"><h2>分组结果</h2><span>${GR.length} 组 · ${GR.reduce((a, g) => a + g.length, 0)} 人</span></div>
+    <div class="groups">${GR.map((g, i) => `<div class="gcard${animate ? "" : " in"}"><div class="num">${pad2(i + 1)}</div><div class="lbl">Group · ${g.length} 人</div><ul>${g.map(s => `<li data-id="${s.id}" class="${!animate && isLead(i, s) ? "lead" : ""}"><span>${esc(s.name)}${tag(s)}</span></li>`).join("")}</ul></div>`).join("")}</div>
+    <div class="gactions"><button class="link" id="copyG">复制结果</button><button class="link" id="exportG">导出 Excel</button></div>`;
+  // group cards always use the slowest pace, whatever the roll-call speed is
+  if (animate) {
+    const cards = [...out.querySelectorAll(".gcard")];
+    cards.forEach((c, i) => gLater(() => { c.classList.add("in"); sfx.soft(); }, 120 + i * 180));
+    if (leaders.length) gLater(() => flickerLeaders(cards, leaders), 120 + (cards.length - 1) * 180 + 1500);
+  }
+  $("#copyG").onclick = () => {
+    const txt = GR.map((g, i) => `第 ${i + 1} 组：${g.map(s => s.name + (isDup(s) ? `(${s.no})` : "") + (isLead(i, s) ? "（组长）" : "")).join("、")}`).join("\n");
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast("已复制到剪贴板"), () => {
+      const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); toast("已复制到剪贴板"); } catch (e) { toast("复制失败"); } ta.remove();
+    });
+  };
+  $("#exportG").onclick = () => {
+    const rows = [["组别", "序号", "姓名", "角色"]];
+    GR.forEach((g, i) => g.forEach(s => rows.push([`第 ${i + 1} 组`, s.no, s.name, isLead(i, s) ? "组长" : ""])));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "分组结果");
+    saveFile("分组结果.xlsx", xlsxBytes(wb));
+  };
+}
+// in every card the highlight hops between names, slows down, and settles on the leader
+function flickerLeaders(cards, leaders) {
+  const steps = [];
+  for (let t = 0; t < 14; t++) steps.push(70 + 430 * Math.pow(t / 13, 2));
+  cards.forEach((card, ci) => {
+    const lis = [...card.querySelectorAll("li")];
+    if (!lis.length) return;
+    let at = 0, last = -1;
+    steps.forEach((ms, si) => {
+      at += ms;
+      gLater(() => {
+        lis.forEach(l => l.classList.remove("flash"));
+        if (si === steps.length - 1) {
+          const L = lis.find(l => l.dataset.id === leaders[ci]);
+          if (L) L.classList.add("lead");
+          if (ci === 0) sfx.ding(0.6);
+          return;
+        }
+        let j; do { j = rnd(lis.length); } while (lis.length > 1 && j === last);
+        last = j; lis[j].classList.add("flash");
+        if (ci === 0) sfx.tick(0.6);
+      }, at);
+    });
+  });
+}
+
+/* ================= ROSTER ================= */
+function renderRoster() {
+  const counts = {};
+  S.students.forEach(s => counts[s.name] = (counts[s.name] || 0) + 1);
+  const body = $("#rosterBody");
+  if (!S.students.length) { body.innerHTML = `<tr><td colspan="3" class="empty">名单为空</td></tr>`; return; }
+  body.innerHTML = sortedStudents().map(s => `<tr data-id="${s.id}" class="${counts[s.name] > 1 ? "dup" : ""}">
+      <td class="no"><input type="number" min="1" value="${s.no}" data-f="no" aria-label="序号"></td>
+      <td class="nm"><input value="${esc(s.name)}" data-f="name" aria-label="姓名" ${counts[s.name] > 1 ? 'title="有重名"' : ""}></td>
+      <td class="x"><button data-del aria-label="删除">×</button></td></tr>`).join("");
+}
+function pickStats() {
+  const st = {};
+  for (const h of S.history) for (const id of h.ids) { const o = st[id] || (st[id] = { n: 0, t: 0 }); o.n++; o.t = Math.max(o.t, h.t); }
+  return st;
+}
+let statByCount = false;
+function renderStats() {
+  const box = $("#statList"), st = pickStats();
+  if (!S.students.length) { box.innerHTML = `<div class="empty">名单为空</div>`; return; }
+  const md = t => { const d = new Date(t); return `${d.getMonth() + 1}月${d.getDate()}日`; };
+  let list = sortedStudents();
+  if (statByCount) list = list.slice().sort((a, b) => ((st[b.id] || {}).n || 0) - ((st[a.id] || {}).n || 0) || a.no - b.no);
+  $("#statSort").textContent = statByCount ? "按序号排序" : "按次数排序";
+  box.innerHTML = list.map(x => { const o = st[x.id]; return `<div class="srow"><span class="no">${pad2(x.no)}</span><span class="nm">${esc(x.name)}${tag(x)}</span><span class="n">${o ? o.n : 0} 次</span><span class="t">${o ? md(o.t) : "还没被点过"}</span></div>`; }).join("");
+}
+$("#statSort").onclick = () => { statByCount = !statByCount; renderStats(); };
+function renderRecords() { renderStats(); renderHistory(); }
+let histAll = false;
+const WK = "日一二三四五六";
+const fmtT = t => { const d = new Date(t); return `${d.getMonth() + 1}月${d.getDate()}日 周${WK[d.getDay()]} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+function renderHistory() {
+  const box = $("#hist"), H = S.history.slice().reverse();
+  if (!H.length) { box.innerHTML = `<div class="empty">还没有点名记录。每次点名都会记在这里，学生看不到这一页。</div>`; return; }
+  const list = histAll ? H : H.slice(0, 30);
+  box.innerHTML = list.map(h => `<div class="hrow"><time>${fmtT(h.t)}</time><span>${h.ids.map((id, i) => esc((byId(id) || {}).name || h.names[i])).join("、")}</span></div>`).join("")
+    + (H.length > 30 ? `<div style="text-align:center;margin-top:24px"><button class="link" id="histMore">${histAll ? "收起" : `显示全部 ${H.length} 条`}</button></div>` : "");
+  const m = $("#histMore"); if (m) m.onclick = () => { histAll = !histAll; renderHistory(); };
+}
+$("#histClear").onclick = () => {
+  if (!S.history.length) { toast("还没有点名记录"); return; }
+  dialog("清空点名记录？", `「${curClass().name}」的 ${S.history.length} 条记录会被删除，被点次数也会归零。`, [{ label: "清空", solid: true, fn: () => { S.history = []; save(); renderRecords(); renderWeights(); toast("已清空点名记录"); } }, { label: "取消" }]);
+};
+$("#histExport").onclick = () => {
+  if (!S.history.length) { toast("还没有点名记录"); return; }
+  const rows = [["日期", "时间", "序号", "姓名"]];
+  for (const h of S.history) {
+    const d = new Date(h.t);
+    h.ids.forEach((id, i) => { const st = byId(id); rows.push([`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`, `${pad2(d.getHours())}:${pad2(d.getMinutes())}`, st ? st.no : "", st ? st.name : h.names[i]]); });
+  }
+  const stat = {}; for (const h of S.history) for (const id of h.ids) stat[id] = (stat[id] || 0) + 1;
+  const sum = [["序号", "姓名", "被点次数"], ...sortedStudents().map(st => [st.no, st.name, stat[st.id] || 0])];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "点名记录");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), "次数统计");
+  saveFile(`点名记录-${curClass().name}.xlsx`, xlsxBytes(wb));
+};
+$("#rosterBody").addEventListener("change", e => {
+  const tr = e.target.closest("tr"); if (!tr) return;
+  const s = byId(tr.dataset.id); const f = e.target.dataset.f; if (!s || !f) return;
+  if (f === "no") s.no = Math.max(1, parseInt(e.target.value) || s.no);
+  else if (f === "name") { const v = e.target.value.trim(); if (v) s.name = v; else { e.target.value = s.name; toast("姓名不能为空"); } }
+  save(); render();
+});
+$("#rosterBody").addEventListener("click", e => {
+  if (!e.target.matches("[data-del]")) return;
+  const id = e.target.closest("tr").dataset.id; const s = byId(id);
+  dialog(`删除 ${s.name}？`, "删除后可以重新添加。", [{ label: "删除", solid: true, fn: () => {
+    S.students = S.students.filter(x => x.id !== id); S.picked = S.picked.filter(x => x !== id); S.lastGroups = null; save(); render();
+  } }, { label: "取消" }]);
+});
+$("#addBtn").onclick = () => {
+  const no = S.students.reduce((m, s) => Math.max(m, s.no), 0) + 1;
+  const s = { id: uid(), no, name: "新同学 " + no, grade: "B", weight: 50 };
+  S.students.push(s); save(); render();
+  const inp = document.querySelector(`tr[data-id="${s.id}"] [data-f=name]`); if (inp) { inp.focus(); inp.select(); }
+};
+$("#clearBtn").onclick = () => {
+  if (!S.students.length) return;
+  dialog("清空整个名单？", "建议先「导出备份」。清空后点名记录、分组结果和权重都会一起清掉。", [{ label: "清空", solid: true, fn: () => {
+    S.students = []; S.picked = []; S.lastGroups = null; save(); render(); $("#report").classList.remove("on");
+  } }, { label: "取消" }]);
+};
+
+/* ---- excel import ---- */
+$("#importBtn").onclick = () => $("#fileIn").click();
+$("#fileIn").onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ""; };
+const drop = $("#drop");
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) importFile(f); });
+drop.onclick = () => $("#fileIn").click();
+drop.style.cursor = "pointer";
+
+function importFile(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    let rows;
+    try {
+      const wb = XLSX.read(new Uint8Array(rd.result), { type: "array" });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false, blankrows: true });
+    } catch (err) { showReport(`<span class="warn">读取失败：${esc(err.message || err)}</span>`); return; }
+    const res = parseRows(rows);
+    if (!res.list.length) { showReport(`<span class="warn">没有读到任何学生。请确认第一个工作表里有「姓名」这一列。</span>`); return; }
+    const apply = () => {
+      S.students = res.list; S.picked = []; S.lastGroups = null; S.lastLeaders = null; S.absent = { date: today(), ids: [] }; save(); render(); showReport(res.report);
+    };
+    if (S.students.length) dialog(`导入 ${res.list.length} 名学生到「${curClass().name}」？`, "会替换掉这个班现在的名单，本轮点名、分组结果和权重都会重置。要放到别的班，先在左上角切换或新建班级。", [{ label: "替换", solid: true, fn: apply }, { label: "取消" }]);
+    else apply();
+  };
+  rd.readAsArrayBuffer(file);
+}
+
+function parseRows(rows) {
+  const cell = v => String(v == null ? "" : v).trim();
+  let hi = -1, cN = -1, cNo = -1, cG = -1;
+  for (let r = 0; r < Math.min(rows.length, 6) && hi < 0; r++) {
+    rows[r].forEach((v, c) => {
+      const t = cell(v);
+      if (cN < 0 && /^(姓名|名字|学生姓名|学生|name)$/i.test(t)) { cN = c; hi = r; }
+    });
+    if (hi === r) rows[r].forEach((v, c) => {
+      const t = cell(v);
+      if (cNo < 0 && /^(序号|学号|编号|座号|no\.?|id)$/i.test(t)) cNo = c;
+      if (cG < 0 && /^(等级|成绩|分层|层次|档次|级别|grade|level)$/i.test(t)) cG = c;
+    });
+  }
+  if (hi < 0) {
+    // no header: guess. numeric first column => [no, name, grade]
+    const sample = rows.filter(r => r.some(v => cell(v))).slice(0, 10);
+    const numFirst = sample.length && sample.filter(r => /^\d+$/.test(cell(r[0]))).length >= sample.length * 0.6;
+    if (numFirst) { cNo = 0; cN = 1; cG = 2; } else { cN = 0; cG = 1; }
+  }
+  const list = [], skipped = [], badGrade = [], usedNo = new Set();
+  let auto = 0;
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const name = cell(row[cN]);
+    if (!name) { if (row.some(v => cell(v))) skipped.push(r + 1); continue; }
+    let g = cG >= 0 ? cell(row[cG]).toUpperCase() : "";
+    if (!["A", "B", "C"].includes(g)) { if (g) badGrade.push(r + 1); g = "B"; }
+    let no = cNo >= 0 ? parseInt(cell(row[cNo])) : NaN;
+    auto++;
+    if (!(no > 0) || usedNo.has(no)) { no = auto; while (usedNo.has(no)) no++; }
+    usedNo.add(no);
+    list.push({ id: uid(), no, name, grade: g, weight: 50 });
+  }
+  const counts = {}; list.forEach(s => counts[s.name] = (counts[s.name] || 0) + 1);
+  const dups = Object.entries(counts).filter(([, c]) => c > 1);
+  const rowsTxt = a => a.length > 8 ? a.slice(0, 8).join("、") + ` 等 ${a.length} 行` : a.join("、");
+  let rep = `已导入 <b>${list.length}</b> 名学生`;
+  if (skipped.length) rep += `<br><span class="warn">跳过 ${skipped.length} 行</span>：第 ${rowsTxt(skipped)} 行没有姓名`;
+  if (badGrade.length) rep += `<br><span class="warn">${badGrade.length} 人成绩不是 A/B/C</span>，已按 B 处理（第 ${rowsTxt(badGrade)} 行）`;
+  if (cG < 0) rep += `<br>没找到「成绩」列，全部按 B 处理`;
+  if (dups.length) rep += `<br>有重名：${dups.map(([n, c]) => `${esc(n)}（${c} 人）`).join("、")}，系统会按序号区分`;
+  return { list, report: rep };
+}
+function showReport(html) { const r = $("#report"); r.innerHTML = html; r.classList.add("on"); }
+
+$("#tplBtn").onclick = () => {
+  const rows = [["序号", "姓名", "成绩"], [1, "张三", "A"], [2, "李四", "B"], [3, "王五", "C"]];
+  const ws = XLSX.utils.aoa_to_sheet(rows); ws["!cols"] = [{ wch: 8 }, { wch: 14 }, { wch: 8 }];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "名单");
+  saveFile("点名名单模板.xlsx", xlsxBytes(wb));
+};
+$("#backupBtn").onclick = () => {
+  const d = new Date();
+  saveFile(`点名备份-全部班级-${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}.json`, JSON.stringify(G, null, 2));
+};
+$("#restoreBtn").onclick = () => $("#backupIn").click();
+$("#backupIn").onchange = e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  f.text().then(t => {
+    const g = normalize(JSON.parse(t)); if (!g) throw 0;
+    const n = g.classes.reduce((a, c) => a + c.d.students.length, 0);
+    dialog("恢复这个备份？", `备份里有 ${g.classes.length} 个班、共 ${n} 名学生，会覆盖现在的全部数据。`, [{ label: "恢复", solid: true, fn: () => { adopt(g); save(); render(); renderSwitches(); toast("已恢复"); } }, { label: "取消" }]);
+  }).catch(() => toast("这不是有效的备份文件"));
+};
+
+/* ================= ADVANCED (Shift + R + 6) ================= */
+let advOpen = false;
+function openAdv() {
+  if (advOpen || phase !== "idle") return;
+  advOpen = true; $("#adv").classList.add("on"); $("#adv").scrollTop = 0;
+  dailyCleanup(); renderWeights(); renderGrades(); renderGroupSettings(); renderRecords(); renderSwitches();
+}
+function closeAdv() { advOpen = false; $("#adv").classList.remove("on"); render(); }
+$("#advClose").onclick = closeAdv;
+$$("#adv .tabs button").forEach(b => b.onclick = () => {
+  $$("#adv .tabs button").forEach(x => x.classList.toggle("on", x === b));
+  ["w", "l", "g", "h"].forEach(k => $("#at-" + k).hidden = b.dataset.at !== k);
+  if (b.dataset.at === "h") renderRecords();
+  if (b.dataset.at === "g") renderGroupSettings();
+  if (b.dataset.at === "l") renderGrades();
+});
+
+const GRADE = { A: "A 优秀", B: "B 普通", C: "C 需帮助" };
+function renderGrades() {
+  const list = $("#glist"), c = { A: 0, B: 0, C: 0 };
+  S.students.forEach(st => c[st.grade]++);
+  $("#gstat").innerHTML = S.students.length ? ["A", "B", "C"].map(g => `<span>${GRADE[g]} <b>${c[g]}</b> 人</span>`).join("") : "";
+  if (!S.students.length) { list.innerHTML = `<div class="empty">名单为空</div>`; return; }
+  list.innerHTML = sortedStudents().map(st => `<div class="grow" data-id="${st.id}"><span class="no">${pad2(st.no)}</span><span class="nm" title="${esc(st.name)}">${esc(st.name)}${tag(st)}</span>
+    <div class="gseg" role="group" aria-label="${esc(st.name)} 成绩">${["A", "B", "C"].map(g => `<button data-g="${g}" class="${st.grade === g ? "on" : ""}" aria-pressed="${st.grade === g}">${GRADE[g]}</button>`).join("")}</div></div>`).join("");
+}
+$("#glist").addEventListener("click", e => {
+  const b = e.target.closest("button[data-g]"); if (!b) return;
+  const st = byId(b.closest(".grow").dataset.id); if (!st || st.grade === b.dataset.g) return;
+  st.grade = b.dataset.g; save(); renderGrades();
+});
+
+function estimateProb() {
+  const pool = eligible(), k = Math.min(pickN(), pool.length), N = 4000, hit = {};
+  if (!pool.length) return hit;
+  for (let t = 0; t < N; t++) draw(k, pool).forEach(s => hit[s.id] = (hit[s.id] || 0) + 1);
+  for (const id in hit) hit[id] /= N;
+  return hit;
+}
+function renderWeights() {
+  const pk = new Set(S.picked), off = absentSet(), stats = pickStats();
+  const list = $("#wlist");
+  if (!S.students.length) { list.innerHTML = `<div class="empty">名单为空</div>`; return; }
+  list.innerHTML = sortedStudents().map(s => `<div class="wrow${pk.has(s.id) || off.has(s.id) ? " off" : ""}" data-id="${s.id}">
+    <span class="no">${pad2(s.no)}</span><span class="nm" title="${esc(s.name)}">${esc(s.name)}${stats[s.id] ? `<small>已点 ${stats[s.id].n} 次</small>` : ""}</span>
+    <input type="range" min="0" max="100" step="1" value="${s.weight}" aria-label="${esc(s.name)} 权重">
+    <span class="v">${s.weight}</span><span class="p"></span></div>`).join("");
+  updateProb();
+}
+let probT;
+function updateProb() {
+  clearTimeout(probT);
+  probT = setTimeout(() => {
+    const pr = estimateProb(), pk = new Set(S.picked), off = absentSet();
+    $$("#wlist .wrow").forEach(r => {
+      const s = byId(r.dataset.id), el = r.querySelector(".p");
+      if (off.has(s.id)) { el.textContent = "缺席"; el.className = "p"; return; }
+      if (pk.has(s.id)) { el.textContent = "已点"; el.className = "p"; return; }
+      if (s.weight >= 100) { el.textContent = "必中"; el.className = "p hi"; return; }
+      if (s.weight <= 0) { el.textContent = "不会点到"; el.className = "p"; return; }
+      const v = (pr[s.id] || 0) * 100;
+      el.textContent = (v >= 10 ? v.toFixed(0) : v.toFixed(1)) + "%";
+      el.className = "p" + (s.weight !== 50 ? " hi" : "");
+    });
+  }, 120);
+}
+$("#wlist").addEventListener("input", e => {
+  if (e.target.type !== "range") return;
+  const r = e.target.closest(".wrow"), s = byId(r.dataset.id);
+  s.weight = +e.target.value; s.wDate = today(); r.querySelector(".v").textContent = s.weight; save(); updateProb();
+});
+$("#resetWeights").onclick = () => { S.students.forEach(s => s.weight = 50); save(); renderWeights(); toast("已全部恢复为 50"); };
+
+function lineRows(key, det, ph, label) {
+  return S[key].map((b, i) => `<div class="bind" data-i="${i}"><div class="wrap"><input value="${esc(b)}" placeholder="${ph}" aria-label="${label} ${i + 1}">
+     <div class="chips">${det[i] && det[i].ok.length ? "✓ " + det[i].ok.map(esc).join(" · ") : ""}${det[i] && det[i].bad.length ? ` <span class="bad">找不到：${det[i].bad.map(esc).join("、")}</span>` : ""}${key === "seps" && det[i] && det[i].ok.length > groupN() ? ` <span class="bad">有 ${det[i].ok.length} 人，但只分 ${groupN()} 组，会有人同组</span>` : ""}</div></div>
+     <button aria-label="删除">×</button></div>`).join("");
+}
+function renderGroupSettings() {
+  $$("#logicSeg button").forEach(b => b.classList.toggle("on", b.dataset.l === S.logic));
+  $("#binds").innerHTML = lineRows("binds", resolveBinds().detail, "例如：张三, 李四, 12", "捆绑组") || `<p class="desc" style="margin-bottom:12px">还没有捆绑组。</p>`;
+  $("#seps").innerHTML = lineRows("seps", resolveLines(S.seps).detail, "例如：王五, 赵六", "不能同组") || `<p class="desc" style="margin-bottom:12px">还没有设置。</p>`;
+}
+$$("#logicSeg button").forEach(b => b.onclick = () => { S.logic = b.dataset.l; save(); renderGroupSettings(); });
+[["binds", "#addBind"], ["seps", "#addSep"]].forEach(([key, btn]) => {
+  const box = $("#" + key);
+  $(btn).onclick = () => { S[key].push(""); save(); renderGroupSettings(); const ins = $$("#" + key + " input"); ins[ins.length - 1].focus(); };
+  box.addEventListener("change", e => {
+    if (e.target.tagName !== "INPUT") return;
+    S[key][+e.target.closest(".bind").dataset.i] = e.target.value; save(); renderGroupSettings();
+  });
+  box.addEventListener("click", e => {
+    if (e.target.tagName !== "BUTTON") return;
+    S[key].splice(+e.target.closest(".bind").dataset.i, 1); save(); renderGroupSettings();
+  });
+});
+
+/* ================= keyboard ================= */
+const down = new Set();
+const typing = el => el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") && el.type !== "range";
+document.addEventListener("keydown", e => {
+  down.add(e.code);
+  if ($("#dlg").classList.contains("on")) { if (e.key === "Escape") $("#dlg").classList.remove("on"); return; }
+  if (typing(e.target)) return;
+  if (e.shiftKey && down.has("KeyR") && (down.has("Digit6") || down.has("Numpad6"))) { e.preventDefault(); openAdv(); return; }
+  if (e.key === "Escape") {
+    if (advOpen) closeAdv();
+    else if (phase === "result") closeStage(false);
+    return;
+  }
+  if (advOpen) return;
+  if (e.code === "Space" || e.key === "Enter") {
+    if (phase === "rolling") { e.preventDefault(); stopRoll(); }
+    else if (phase === "result") { e.preventDefault(); closeStage(true); }
+    else if (phase === "idle" && page === "pick" && e.code === "Space") { e.preventDefault(); startPick(); }
+    return;
+  }
+  if ((e.key === "f" || e.key === "F") && !e.shiftKey && !e.ctrlKey && !e.metaKey) toggleFs();
+});
+document.addEventListener("keyup", e => down.delete(e.code));
+window.addEventListener("blur", () => down.clear());
+
+function toggleFs() {
+  try {
+    const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    if (p && p.catch) p.catch(() => toast("这里不支持全屏，可以用浏览器自带的全屏"));
+  } catch (e) { toast("这里不支持全屏，可以用浏览器自带的全屏"); }
+}
+$("#fsBtn").onclick = toggleFs;
+
+/* ================= classes ================= */
+function renderClasses() { const c = curClass(); if (c) $("#clsName").textContent = c.name; }
+const menu = $("#clsMenu"), clsBtn = $("#clsBtn");
+function closeMenu() { menu.hidden = true; clsBtn.setAttribute("aria-expanded", "false"); }
+clsBtn.onclick = e => {
+  e.stopPropagation();
+  if (!menu.hidden) { closeMenu(); return; }
+  menu.innerHTML = G.classes.map(c => `<button role="menuitem" data-c="${c.id}" class="${c.id === G.current ? "cur" : ""}">${esc(c.name)}<small>${c.d.students.length} 人</small></button>`).join("")
+    + `<hr><button role="menuitem" data-a="new">新建班级</button><button role="menuitem" data-a="rename">重命名「${esc(curClass().name)}」</button>`
+    + (G.classes.length > 1 ? `<button role="menuitem" data-a="del" class="danger">删除「${esc(curClass().name)}」</button>` : "");
+  menu.hidden = false; clsBtn.setAttribute("aria-expanded", "true");
+};
+document.addEventListener("click", e => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); });
+menu.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  closeMenu();
+  if (b.dataset.c) { switchClass(b.dataset.c); return; }
+  const a = b.dataset.a, cur = curClass();
+  if (a === "new") dialog("新建班级", "输入班级名称，比如「高一 3 班」。新班级是空的，建好后去「名单」导入。", [
+    { label: "新建", solid: true, fn: name => { const c = { id: uid(), name: name.slice(0, 30), d: newClassData() }; G.classes.push(c); switchClass(c.id); go("roster"); } },
+    { label: "取消" }], "");
+  if (a === "rename") dialog("重命名班级", "", [
+    { label: "保存", solid: true, fn: name => { cur.name = name.slice(0, 30); save(); render(); } },
+    { label: "取消" }], cur.name);
+  if (a === "del") dialog(`删除「${cur.name}」？`, `这个班的名单、点名记录、权重和分组设置都会删除，不能恢复。建议先「导出备份」。`, [
+    { label: "删除", solid: true, fn: () => { G.classes = G.classes.filter(c => c !== cur); switchClass(G.classes[0].id); toast(`已删除「${cur.name}」`); } },
+    { label: "取消" }]);
+});
+function switchClass(id) {
+  if (phase !== "idle") return;
+  clearGroupTimers();
+  G.current = id; S = curClass().d; dailyCleanup();
+  histAll = false; $("#report").classList.remove("on");
+  save(); render();
+  if (advOpen) { renderWeights(); renderGrades(); renderGroupSettings(); renderRecords(); }
+  toast(`已切换到「${curClass().name}」`);
+}
+
+/* ================= switches (sound / hidden options) ================= */
+function renderSwitches() { $$(".switch[data-g]").forEach(b => b.setAttribute("aria-checked", String(!!G[b.dataset.g]))); }
+const renderSound = renderSwitches;
+$$(".switch[data-g]").forEach(b => b.onclick = () => {
+  const k = b.dataset.g; G[k] = !G[k];
+  // turning on "today only": weights already set count as set today
+  if (k === "restoreToday" && G[k]) G.classes.forEach(c => c.d.students.forEach(st => { if (st.weight !== 50) st.wDate = today(); }));
+  if (k === "sound" && G[k]) sfx.ding(0.5);
+  save(); renderSwitches();
+});
+
+/* ================= sound (generated, no files) ================= */
+const sfx = (() => {
+  let ctx = null;
+  const get = () => {
+    if (!G.sound) return null;
+    try { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === "suspended") ctx.resume(); } catch (e) { return null; }
+    return ctx;
+  };
+  const tone = (f, dur, gain, type, at) => {
+    const a = get(); if (!a) return;
+    const t = a.currentTime + (at || 0), o = a.createOscillator(), g = a.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+  };
+  return {
+    wake: () => get(),
+    tick: (v = 1) => { tone(2300, 0.03, 0.035 * v, "triangle"); tone(1150, 0.025, 0.02 * v, "sine"); },
+    ding: (v = 1) => { tone(1046.5, 1.8, 0.14 * v); tone(1568, 1.4, 0.06 * v, "sine", 0.01); tone(2093, 0.9, 0.03 * v, "sine", 0.02); },
+    soft: () => tone(660, 0.35, 0.035, "sine")
+  };
+})();
+
+/* ================= init ================= */
+load();
+save();
+renderSwitches();
+render();
+initCloud();
+})();
+</script>
+</body>
+</html>

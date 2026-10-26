@@ -1,0 +1,12 @@
+{
+  "name": "teacher-classroom-rollcall",
+  "version": "1.0.0",
+  "private": true,
+  "description": "课堂随机点名与分组工具（单个 HTML 文件，可离线使用）",
+  "scripts": {
+    "build": "python3 build.py"
+  },
+  "dependencies": {
+    "xlsx": "0.18.5"
+  }
+}
